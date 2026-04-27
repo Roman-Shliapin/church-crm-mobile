@@ -19,9 +19,21 @@ export type NeedsStackParamList = {
     CreateNeed: undefined;
 };
 
+export type BibleStackParamList = {
+    BibleBooks: undefined;
+    BibleChapters: { bookid: number; bookName: string; chapters: number };
+    BibleReader: {
+        bookid: number;
+        bookName: string;
+        chapter: number;
+        chapters: number;
+    };
+};
+
 export type MainTabParamList = {
     Home: undefined;
     Needs: NavigatorScreenParams<NeedsStackParamList> | undefined;
+    Bible: NavigatorScreenParams<BibleStackParamList> | undefined;
     Profile: undefined;
     Admin: NavigatorScreenParams<AdminStackParamList> | undefined;
 };

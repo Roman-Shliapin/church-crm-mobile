@@ -12,12 +12,13 @@ import AdminNeedDetailScreen from '../screens/AdminNeedDetailScreen';
 import AdminPeopleScreen from '../screens/AdminPeopleScreen';
 import { Colors } from '../../constants/colors';
 import { CustomTabBar } from '../components/CustomTabBar';
-import { Home, FileText, User, Settings } from 'lucide-react-native';
+import { Home, FileText, User, Settings, BookOpen } from 'lucide-react-native';
 import type {
     AdminStackParamList,
     MainTabParamList,
     NeedsStackParamList,
 } from './types';
+import BibleScreenStack from '../screens/BibleScreen';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 const AdminStack = createNativeStackNavigator<AdminStackParamList>();
@@ -180,6 +181,21 @@ export default function TabNavigator({
                 }}
             >
                 {() => <NeedsStackNavigator />}
+            </Tab.Screen>
+            <Tab.Screen
+                name="Bible"
+                options={{
+                    tabBarLabel: 'Біблія',
+                    tabBarIcon: ({ color, size, focused }) => (
+                        <BookOpen
+                            size={size ?? 24}
+                            color={color}
+                            strokeWidth={focused ? 2.5 : 1.85}
+                        />
+                    ),
+                }}
+            >
+                {() => <BibleScreenStack />}
             </Tab.Screen>
             <Tab.Screen
                 name="Profile"
