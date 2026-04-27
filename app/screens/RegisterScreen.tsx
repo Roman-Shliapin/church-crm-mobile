@@ -12,49 +12,55 @@ import {
     ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Home } from 'lucide-react-native';
+import { ChevronLeft } from 'lucide-react-native';
 import { api } from '../../services/api';
 import { saveToken } from '../../services/auth';
 import { Colors } from '../../constants/colors';
 import { Typography } from '../../constants/typography';
 import { softCardShadow } from '../../constants/shadows';
 import type { AppUser } from '../types/auth';
-import { validateLoginForm } from '../../utils/validation';
+import { normalizePhone, validateRegisterForm } from '../../utils/validation';
 
-export default function LoginScreen({
-    onLogin,
-    onGoRegister,
-}: {
-    onLogin: (user: AppUser) => void;
-    onGoRegister?: () => void;
-}) {
+type RegisterScreenProps = {
+    onRegistered: (user: AppUser) => void;
+    onGoLogin: () => void;
+};
+
+export default function RegisterScreen({
+    onRegistered,
+    onGoLogin,
+}: RegisterScreenProps) {
+    const [phone, setPhone] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [password2, setPassword2] = useState('');
     const [loading, setLoading] = useState(false);
 
-    const handleLogin = async () => {
-        const validationError = validateLoginForm(email, password);
+    const handleRegister = async () => {
+        const validationError = validateRegisterForm(phone, email, password, password2);
         if (validationError) {
             Alert.alert('Помилка', validationError);
             return;
         }
 
+        const phoneNorm = normalizePhone(phone);
         setLoading(true);
         try {
-            const data = await api.post('/auth/login', {
+            const data = await api.post('/auth/register', {
+                phone: phoneNorm,
                 email: email.trim().toLowerCase(),
                 password,
             });
 
             if (data.token) {
                 await saveToken(data.token);
-                onLogin({
+                onRegistered({
                     token: data.token,
                     role: data.role,
                     name: typeof data.name === 'string' ? data.name : undefined,
                 });
             } else {
-                Alert.alert('Помилка', data.message || 'Невідома помилка');
+                Alert.alert('Помилка', data.message || 'Не вдалось зареєструватись');
             }
         } catch {
             Alert.alert('Помилка', 'Не вдалось підключитись до сервера');
@@ -74,21 +80,39 @@ export default function LoginScreen({
                     keyboardShouldPersistTaps="handled"
                     showsVerticalScrollIndicator={false}
                 >
+                    <TouchableOpacity
+                        style={styles.backRow}
+                        onPress={onGoLogin}
+                        disabled={loading}
+                        hitSlop={12}
+                    >
+                        <ChevronLeft size={22} color={Colors.primary} strokeWidth={2} />
+                        <Text style={styles.backText}>До входу</Text>
+                    </TouchableOpacity>
+
                     <View style={styles.brandBlock}>
-                        <View style={styles.logoRing}>
-                            <View style={styles.logoInner}>
-                                <Home size={36} color={Colors.white} strokeWidth={1.85} />
-                            </View>
-                        </View>
-                        <Text style={styles.churchLine}>Церква Христова</Text>
-                        <Text style={styles.cityLine}>м. Вінниця</Text>
-                        <Text style={styles.screenTitle}>Вхід</Text>
+                        <Text style={styles.screenTitle}>Реєстрація</Text>
                         <Text style={styles.screenHint}>
-                            CRM для учасників та служіння
+                            Якщо ви вже в базі церкви (через бота), вкажіть той самий
+                            номер телефону, email і задайте пароль для входу в
+                            застосунок.
                         </Text>
                     </View>
 
                     <View style={styles.card}>
+                        <View style={styles.field}>
+                            <Text style={styles.fieldLabel}>Телефон</Text>
+                            <TextInput
+                                style={styles.input}
+                                placeholder="+380671112233"
+                                placeholderTextColor={Colors.textLight}
+                                value={phone}
+                                onChangeText={setPhone}
+                                keyboardType="phone-pad"
+                                autoCorrect={false}
+                                editable={!loading}
+                            />
+                        </View>
                         <View style={styles.field}>
                             <Text style={styles.fieldLabel}>Email</Text>
                             <TextInput
@@ -115,33 +139,31 @@ export default function LoginScreen({
                                 editable={!loading}
                             />
                         </View>
+                        <View style={styles.field}>
+                            <Text style={styles.fieldLabel}>Підтвердження пароля</Text>
+                            <TextInput
+                                style={styles.input}
+                                placeholder="••••••••"
+                                placeholderTextColor={Colors.textLight}
+                                value={password2}
+                                onChangeText={setPassword2}
+                                secureTextEntry
+                                editable={!loading}
+                            />
+                        </View>
 
                         <TouchableOpacity
                             style={[styles.button, loading && styles.buttonDisabled]}
-                            onPress={handleLogin}
+                            onPress={handleRegister}
                             disabled={loading}
                             activeOpacity={0.9}
                         >
                             {loading ? (
                                 <ActivityIndicator color={Colors.white} />
                             ) : (
-                                <Text style={styles.buttonText}>Увійти</Text>
+                                <Text style={styles.buttonText}>Зареєструватись</Text>
                             )}
                         </TouchableOpacity>
-
-                        {onGoRegister ? (
-                            <TouchableOpacity
-                                style={styles.linkBelow}
-                                onPress={onGoRegister}
-                                disabled={loading}
-                                hitSlop={8}
-                            >
-                                <Text style={styles.linkBelowText}>
-                                    Немає акаунту?{' '}
-                                    <Text style={styles.linkBelowBold}>Зареєструватись</Text>
-                                </Text>
-                            </TouchableOpacity>
-                        ) : null}
                     </View>
                 </ScrollView>
             </KeyboardAvoidingView>
@@ -159,51 +181,31 @@ const styles = StyleSheet.create({
     },
     scrollContent: {
         flexGrow: 1,
-        justifyContent: 'center',
         paddingHorizontal: 22,
-        paddingVertical: 24,
+        paddingVertical: 20,
+    },
+    backRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        marginBottom: 16,
+        alignSelf: 'flex-start',
+    },
+    backText: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: Colors.primary,
     },
     brandBlock: {
-        alignItems: 'center',
-        marginBottom: 28,
-    },
-    logoRing: {
-        padding: 4,
-        borderRadius: 52,
-        backgroundColor: Colors.surface,
-        borderWidth: StyleSheet.hairlineWidth,
-        borderColor: Colors.border,
-        marginBottom: 18,
-        ...softCardShadow,
-    },
-    logoInner: {
-        width: 88,
-        height: 88,
-        borderRadius: 44,
-        backgroundColor: Colors.primary,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    churchLine: {
-        ...Typography.sectionLabel,
-        color: Colors.accent,
-        letterSpacing: 1.4,
-    },
-    cityLine: {
-        marginTop: 4,
-        fontSize: 15,
-        fontWeight: '500',
-        color: Colors.textLight,
-        marginBottom: 14,
+        marginBottom: 22,
     },
     screenTitle: {
         ...Typography.screenTitle,
+        marginBottom: 10,
     },
     screenHint: {
-        marginTop: 8,
         ...Typography.muted,
-        textAlign: 'center',
-        maxWidth: 300,
+        maxWidth: 340,
     },
     card: {
         backgroundColor: Colors.surface,
@@ -249,19 +251,6 @@ const styles = StyleSheet.create({
     buttonText: {
         color: Colors.white,
         fontSize: 17,
-        fontWeight: '600',
-    },
-    linkBelow: {
-        marginTop: 20,
-        alignItems: 'center',
-    },
-    linkBelowText: {
-        fontSize: 15,
-        color: Colors.textLight,
-        textAlign: 'center',
-    },
-    linkBelowBold: {
-        color: Colors.primary,
         fontWeight: '600',
     },
 });
