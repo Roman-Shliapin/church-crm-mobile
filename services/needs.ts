@@ -86,6 +86,7 @@ const STATUS_LABELS: Record<string, string> = {
     waiting: "Очікує",
     new: "Нова",
     нова: "Нова",
+    нове: "Нова",
     active: "Активна",
     open: "Відкрита",
     in_progress: "В роботі",

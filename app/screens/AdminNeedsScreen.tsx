@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
     View,
     Text,
@@ -11,6 +11,7 @@ import {
     ScrollView,
     Linking,
     Animated,
+    Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -32,6 +33,10 @@ import {
     MessageCircle,
     Archive,
     CircleCheck,
+    Settings,
+    CircleDot,
+    Clock,
+    Check,
     type LucideIcon,
 } from 'lucide-react-native';
 
@@ -73,7 +78,7 @@ function formatDoneAt(iso: string | null | undefined): string | null {
 }
 
 function statusBadgeColors(status: string) {
-    const s = status?.toLowerCase?.() ?? '';
+    const s = (status ?? '').trim().toLowerCase();
     if (s === 'виконано' || s === 'done' || s === 'closed') {
         return {
             bg: `${Colors.statusBadgeDone}22`,
@@ -92,7 +97,17 @@ function statusBadgeColors(status: string) {
             text: Colors.statusBadgeWaiting,
         };
     }
-    if (s === 'нова' || s === 'new' || s === 'active' || s === 'open') {
+    if (
+        s === 'нова' ||
+        s === 'нове' ||
+        s === 'новая' ||
+        s === 'new' ||
+        s === 'active' ||
+        s === 'open' ||
+        s === 'pending' ||
+        s === 'created' ||
+        s === 'submitted'
+    ) {
         return {
             bg: `${Colors.statusBadgeNew}22`,
             border: `${Colors.statusBadgeNew}66`,
@@ -109,6 +124,65 @@ function statusBadgeColors(status: string) {
 function normalizeTel(raw: string): string | null {
     const t = raw.replace(/[^\d+]/g, '');
     return t.length > 0 ? t : null;
+}
+
+/** Локальний фільтр списку за полем status */
+type StatusFilterKey = 'all' | 'new' | 'waiting';
+
+function normalizeNeedStatus(raw: string | undefined): string {
+    return (typeof raw === 'string' ? raw : '').trim().toLowerCase();
+}
+
+/** Якщо з API приходить інший ключ замість status — все одно фільтруємо коректно. */
+function rawNeedStatus(item: AdminNeed): string | undefined {
+    const r = item as Record<string, unknown>;
+    const primary = item.status;
+    if (typeof primary === 'string' && primary.trim() !== '') return primary;
+    const alt = r.state ?? r.needStatus;
+    return typeof alt === 'string' ? alt : undefined;
+}
+
+function isDoneNeedStatus(s: string): boolean {
+    return s === 'виконано' || s === 'done' || s === 'closed';
+}
+
+function isWaitingNeedStatus(s: string): boolean {
+    return (
+        s === 'в очікуванні' ||
+        s === 'in_progress' ||
+        s.includes('очікуван')
+    );
+}
+
+/** Має збігатися з «синім» бейджем у statusBadgeColors (крім done / waiting). */
+function isNewNeedStatus(s: string): boolean {
+    if (!s) return false;
+    if (isDoneNeedStatus(s) || isWaitingNeedStatus(s)) return false;
+    return (
+        s === 'нова' ||
+        s === 'нове' ||
+        s === 'новая' ||
+        s === 'new' ||
+        s === 'active' ||
+        s === 'open' ||
+        s === 'pending' ||
+        s === 'created' ||
+        s === 'submitted'
+    );
+}
+
+function matchesStatusFilter(item: AdminNeed, filter: StatusFilterKey): boolean {
+    const s = normalizeNeedStatus(rawNeedStatus(item));
+    switch (filter) {
+        case 'all':
+            return true;
+        case 'new':
+            return isNewNeedStatus(s);
+        case 'waiting':
+            return isWaitingNeedStatus(s);
+        default:
+            return true;
+    }
 }
 
 function emptyMessage(tab: FilterTab): string {
@@ -130,6 +204,16 @@ function emptyMessage(tab: FilterTab): string {
 
 type Nav = NativeStackNavigationProp<AdminStackParamList, 'AdminNeeds'>;
 
+const STATUS_FILTER_OPTIONS: {
+    key: StatusFilterKey;
+    label: string;
+    Icon: LucideIcon;
+}[] = [
+    { key: 'all', label: 'Всі статуси', Icon: Layers },
+    { key: 'new', label: 'Нові', Icon: CircleDot },
+    { key: 'waiting', label: 'В очікуванні', Icon: Clock },
+];
+
 export default function AdminNeedsScreen() {
     const navigation = useNavigation<Nav>();
     const [categoryTab, setCategoryTab] = useState<FilterTab>('all');
@@ -139,8 +223,44 @@ export default function AdminNeedsScreen() {
     const [tabCounts, setTabCounts] = useState<Partial<Record<FilterTab, number>>>(
         {},
     );
+    const [statusFilter, setStatusFilter] = useState<StatusFilterKey>('all');
+    const [filterModalVisible, setFilterModalVisible] = useState(false);
 
     const listOpacity = useRef(new Animated.Value(1)).current;
+
+    const filteredNeeds = useMemo(
+        () => needs.filter((item) => matchesStatusFilter(item, statusFilter)),
+        [needs, statusFilter],
+    );
+
+    useLayoutEffect(() => {
+        const filterActive = statusFilter !== 'all';
+        navigation.setOptions({
+            headerRight: () => (
+                <TouchableOpacity
+                    style={[styles.headerFilterBtn, filterActive && styles.headerFilterBtnActive]}
+                    onPress={() => setFilterModalVisible(true)}
+                    hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                    accessibilityRole="button"
+                    accessibilityLabel="Фільтр за статусом"
+                >
+                    <Settings
+                        size={20}
+                        color={filterActive ? Colors.primary : Colors.textLight}
+                        strokeWidth={2}
+                    />
+                    <Text
+                        style={[
+                            styles.headerFilterText,
+                            filterActive && styles.headerFilterTextActive,
+                        ]}
+                    >
+                        Фільтр
+                    </Text>
+                </TouchableOpacity>
+            ),
+        });
+    }, [navigation, statusFilter]);
 
     const load = useCallback(
         async (isRefresh = false) => {
@@ -316,6 +436,21 @@ export default function AdminNeedsScreen() {
     const EmptyIcon =
         categoryTab === 'archived' ? Archive : TAB_CONFIG.find((t) => t.key === categoryTab)?.Icon ?? Layers;
 
+    const emptySubtitle =
+        !switchingOverlay && needs.length > 0 && filteredNeeds.length === 0
+            ? 'Немає заявок з обраним статусом'
+            : emptyMessage(categoryTab);
+
+    const selectStatusFilter = (key: StatusFilterKey) => {
+        setStatusFilter(key);
+        setFilterModalVisible(false);
+    };
+
+    const resetStatusFilter = () => {
+        setStatusFilter('all');
+        setFilterModalVisible(false);
+    };
+
     return (
         <SafeAreaView style={styles.safe} edges={['bottom']}>
             {renderTabs()}
@@ -327,7 +462,7 @@ export default function AdminNeedsScreen() {
                 ) : null}
                 <Animated.View style={[styles.listAnimated, { opacity: listOpacity }]}>
                     <FlatList
-                        data={needs}
+                        data={filteredNeeds}
                         keyExtractor={(item) =>
                             String(item._id ?? item.id ?? needId(item) ?? item.description)
                         }
@@ -349,20 +484,100 @@ export default function AdminNeedsScreen() {
                                         color={Colors.textLight}
                                         strokeWidth={1.4}
                                     />
-                                    <Text style={styles.emptyText}>
-                                        {emptyMessage(categoryTab)}
-                                    </Text>
+                                    <Text style={styles.emptyText}>{emptySubtitle}</Text>
                                 </View>
                             )
                         }
                     />
                 </Animated.View>
             </View>
+
+            <Modal
+                visible={filterModalVisible}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setFilterModalVisible(false)}
+            >
+                <View style={styles.filterModalOverlay}>
+                    <TouchableOpacity
+                        style={styles.filterModalBackdrop}
+                        activeOpacity={1}
+                        onPress={() => setFilterModalVisible(false)}
+                    />
+                    <View style={styles.filterModalCard}>
+                        <Text style={styles.filterModalTitle}>Статус заявки</Text>
+                        {STATUS_FILTER_OPTIONS.map(({ key, label, Icon }) => {
+                            const selected = statusFilter === key;
+                            return (
+                                <TouchableOpacity
+                                    key={key}
+                                    style={[
+                                        styles.filterModalRow,
+                                        selected && styles.filterModalRowSelected,
+                                    ]}
+                                    onPress={() => selectStatusFilter(key)}
+                                    activeOpacity={0.85}
+                                >
+                                    <Icon
+                                        size={20}
+                                        color={selected ? Colors.primary : Colors.textLight}
+                                        strokeWidth={2}
+                                    />
+                                    <Text
+                                        style={[
+                                            styles.filterModalRowText,
+                                            selected && styles.filterModalRowTextSelected,
+                                        ]}
+                                    >
+                                        {label}
+                                    </Text>
+                                    {selected ? (
+                                        <Check size={20} color={Colors.primary} strokeWidth={2} />
+                                    ) : (
+                                        <View style={styles.filterModalCheckPlaceholder} />
+                                    )}
+                                </TouchableOpacity>
+                            );
+                        })}
+                        <TouchableOpacity
+                            style={styles.filterModalReset}
+                            onPress={resetStatusFilter}
+                            activeOpacity={0.85}
+                        >
+                            <Text style={styles.filterModalResetText}>Скинути</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
         </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
+    headerFilterBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        marginRight: 8,
+        paddingVertical: 6,
+        paddingHorizontal: 8,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: Colors.border,
+        backgroundColor: Colors.white,
+    },
+    headerFilterBtnActive: {
+        borderColor: Colors.primary,
+        backgroundColor: `${Colors.primary}14`,
+    },
+    headerFilterText: {
+        fontSize: 15,
+        fontWeight: '600',
+        color: Colors.textLight,
+    },
+    headerFilterTextActive: {
+        color: Colors.primary,
+    },
     safe: {
         flex: 1,
         backgroundColor: Colors.background,
@@ -526,5 +741,71 @@ const styles = StyleSheet.create({
         color: Colors.textLight,
         fontWeight: '600',
         textAlign: 'center',
+    },
+    filterModalOverlay: {
+        flex: 1,
+        justifyContent: 'center',
+        paddingHorizontal: 24,
+    },
+    filterModalBackdrop: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: 'rgba(0,0,0,0.45)',
+    },
+    filterModalCard: {
+        backgroundColor: Colors.surface,
+        borderRadius: 16,
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: Colors.border,
+        paddingVertical: 8,
+        paddingHorizontal: 12,
+        maxWidth: 400,
+        alignSelf: 'center',
+        width: '100%',
+    },
+    filterModalTitle: {
+        fontSize: 17,
+        fontWeight: '700',
+        color: Colors.text,
+        paddingHorizontal: 8,
+        paddingVertical: 12,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: Colors.border,
+        marginBottom: 4,
+    },
+    filterModalRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        paddingVertical: 14,
+        paddingHorizontal: 12,
+        borderRadius: 12,
+    },
+    filterModalRowSelected: {
+        backgroundColor: `${Colors.primary}12`,
+    },
+    filterModalRowText: {
+        flex: 1,
+        fontSize: 16,
+        fontWeight: '600',
+        color: Colors.text,
+    },
+    filterModalRowTextSelected: {
+        color: Colors.primary,
+    },
+    filterModalCheckPlaceholder: {
+        width: 20,
+        height: 20,
+    },
+    filterModalReset: {
+        marginTop: 8,
+        paddingVertical: 14,
+        alignItems: 'center',
+        borderTopWidth: StyleSheet.hairlineWidth,
+        borderTopColor: Colors.border,
+    },
+    filterModalResetText: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: Colors.primary,
     },
 });
