@@ -15,7 +15,7 @@ import { Colors } from '../../constants/colors'
 
 
 
-export default function LoginScreen({ navigation }: any) {
+export default function LoginScreen({ onLogin }: { onLogin: (user: any) => void }) {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
@@ -32,7 +32,7 @@ export default function LoginScreen({ navigation }: any) {
 
             if (data.token) {
                 await saveToken(data.token);
-                Alert.alert('Успіх', `Вітаємо, ${data.name}!`)
+                onLogin({ token: data.token, role: data.role })
             } else {
                 Alert.alert('Помилка', data.message || 'Невідома помилка')
             }
