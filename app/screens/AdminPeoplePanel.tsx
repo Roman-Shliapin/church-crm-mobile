@@ -19,8 +19,15 @@ import {
 import { Colors } from '../../constants/colors';
 import { softCardShadow } from '../../constants/shadows';
 import { SessionExpiredError } from '../../services/session';
+import { getFirstName } from '../../services/nameUtils';
 
 type PeopleTab = 'members' | 'candidates';
+
+type AdminPeoplePanelProps = {
+    initialSubTab?: PeopleTab;
+    /** Якщо true — тільки один список без перемикача табів */
+    hideTabs?: boolean;
+};
 
 function Row({ label, value }: { label: string; value?: string }) {
     const v = value?.trim();
@@ -33,8 +40,11 @@ function Row({ label, value }: { label: string; value?: string }) {
     );
 }
 
-export default function AdminPeoplePanel() {
-    const [subTab, setSubTab] = useState<PeopleTab>('members');
+export default function AdminPeoplePanel({
+    initialSubTab = 'members',
+    hideTabs = false,
+}: AdminPeoplePanelProps) {
+    const [subTab, setSubTab] = useState<PeopleTab>(initialSubTab);
     const [people, setPeople] = useState<AdminPerson[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -63,11 +73,15 @@ export default function AdminPeoplePanel() {
     );
 
     useEffect(() => {
+        setSubTab(initialSubTab);
+    }, [initialSubTab]);
+
+    useEffect(() => {
         load(false);
     }, [subTab, load]);
 
     const renderItem = ({ item }: { item: AdminPerson }) => {
-        const title = item.name?.trim() || 'Без імені';
+        const title = getFirstName(item.name ?? '') || 'Без імені';
         const baptized =
             item.baptized === true
                 ? 'Хрещений'
@@ -107,26 +121,30 @@ export default function AdminPeoplePanel() {
 
     return (
         <View style={styles.wrap}>
-            <View style={styles.tabs}>
-                <TouchableOpacity
-                    style={[styles.tab, subTab === 'members' && styles.tabActive]}
-                    onPress={() => setSubTab('members')}
-                    activeOpacity={0.7}
-                >
-                    <Text style={[styles.tabLabel, subTab === 'members' && styles.tabLabelActive]}>
-                        Члени
-                    </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                    style={[styles.tab, subTab === 'candidates' && styles.tabActive]}
-                    onPress={() => setSubTab('candidates')}
-                    activeOpacity={0.7}
-                >
-                    <Text style={[styles.tabLabel, subTab === 'candidates' && styles.tabLabelActive]}>
-                        Кандидати
-                    </Text>
-                </TouchableOpacity>
-            </View>
+            {hideTabs ? null : (
+                <View style={styles.tabs}>
+                    <TouchableOpacity
+                        style={[styles.tab, subTab === 'members' && styles.tabActive]}
+                        onPress={() => setSubTab('members')}
+                        activeOpacity={0.7}
+                    >
+                        <Text style={[styles.tabLabel, subTab === 'members' && styles.tabLabelActive]}>
+                            Члени
+                        </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[styles.tab, subTab === 'candidates' && styles.tabActive]}
+                        onPress={() => setSubTab('candidates')}
+                        activeOpacity={0.7}
+                    >
+                        <Text
+                            style={[styles.tabLabel, subTab === 'candidates' && styles.tabLabelActive]}
+                        >
+                            Кандидати
+                        </Text>
+                    </TouchableOpacity>
+                </View>
+            )}
 
             <FlatList
                 data={people}

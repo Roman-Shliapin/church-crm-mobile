@@ -52,3 +52,16 @@ export function nameFromToken(token: string): string | undefined {
     }
     return undefined;
 }
+
+export function userIdFromToken(token: string): string | undefined {
+    const p = parseJwtPayload(token);
+    const raw = p?.userId ?? p?.id ?? p?._id ?? p?.sub;
+    if (typeof raw === 'string') {
+        const t = raw.trim();
+        return t || undefined;
+    }
+    if (typeof raw === 'number' && Number.isFinite(raw)) {
+        return String(raw);
+    }
+    return undefined;
+}

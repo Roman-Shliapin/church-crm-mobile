@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import type { AdminStackParamList } from '../navigation/types';
+import type { RootStackParamList } from '../navigation/types';
 import {
     AdminNeed,
     replyToAdminNeed,
@@ -25,8 +25,7 @@ import {
 import { needId, needStatusLabel, needTypeLabel, type NeedType } from '../../services/needs';
 import { Colors } from '../../constants/colors';
 import { SessionExpiredError } from '../../services/session';
-
-type Props = NativeStackScreenProps<AdminStackParamList, 'AdminNeedDetail'>;
+type Props = NativeStackScreenProps<RootStackParamList, 'AdminNeedDetail'>;
 
 function statusBadgeColors(status: string) {
     const s = status?.toLowerCase?.() ?? '';
@@ -161,7 +160,7 @@ export default function AdminNeedDetailScreen({ route, navigation }: Props) {
                 keyboardShouldPersistTaps="handled"
                 showsVerticalScrollIndicator={false}
             >
-                <Text style={styles.title}>{need.name?.trim() || 'Без імені'}</Text>
+                <Text style={styles.title}>{(need.name ?? '').trim() || 'Без імені'}</Text>
 
                 <View style={styles.row}>
                     <View

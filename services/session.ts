@@ -1,4 +1,4 @@
-import { removeToken } from './auth';
+import { removeToken, removeUserId } from './auth';
 
 /** Кидається після 401 на захищених запитах (токен очищено, сесію скинуто). */
 export class SessionExpiredError extends Error {
@@ -21,5 +21,6 @@ export function unregisterSignOutHandler() {
 /** Видаляє токен і повідомляє App (наприклад, `setUser(null)`). */
 export async function signOut() {
     await removeToken();
+    await removeUserId();
     onSignedOut?.();
 }

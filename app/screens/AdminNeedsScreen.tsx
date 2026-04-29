@@ -14,9 +14,10 @@ import {
     Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { AdminStackParamList } from '../navigation/types';
+import type { RootStackParamList } from '../navigation/types';
+import type { RouteProp } from '@react-navigation/native';
 import {
     AdminNeed,
     type AdminActiveCategory,
@@ -202,7 +203,7 @@ function emptyMessage(tab: FilterTab): string {
     }
 }
 
-type Nav = NativeStackNavigationProp<AdminStackParamList, 'AdminNeeds'>;
+type Nav = NativeStackNavigationProp<RootStackParamList, 'AdminNeeds'>;
 
 const STATUS_FILTER_OPTIONS: {
     key: StatusFilterKey;
@@ -216,6 +217,7 @@ const STATUS_FILTER_OPTIONS: {
 
 export default function AdminNeedsScreen() {
     const navigation = useNavigation<Nav>();
+    const route = useRoute<RouteProp<RootStackParamList, 'AdminNeeds'>>();
     const [categoryTab, setCategoryTab] = useState<FilterTab>('all');
     const [needs, setNeeds] = useState<AdminNeed[]>([]);
     const [loading, setLoading] = useState(true);
@@ -231,6 +233,14 @@ export default function AdminNeedsScreen() {
     const filteredNeeds = useMemo(
         () => needs.filter((item) => matchesStatusFilter(item, statusFilter)),
         [needs, statusFilter],
+    );
+
+    useFocusEffect(
+        useCallback(() => {
+            const ic = route.params?.initialCategory;
+            if (ic === 'archived') setCategoryTab('archived');
+            else if (ic === 'active') setCategoryTab('all');
+        }, [route.params?.initialCategory]),
     );
 
     useLayoutEffect(() => {
@@ -381,7 +391,7 @@ export default function AdminNeedsScreen() {
                 accessibilityRole="button"
             >
                 <Text style={styles.name} numberOfLines={2}>
-                    {item.name?.trim() || 'Без імені'}
+                    {(item.name ?? '').trim() || 'Без імені'}
                 </Text>
                 <Text style={styles.description} numberOfLines={3}>
                     {item.description?.trim() || '—'}

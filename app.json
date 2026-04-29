@@ -31,6 +31,12 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "7e5c7562-1bab-4e30-af3a-db578b66df72"
+      }
+    },
+    "owner": "roman_shliapin"
   }
 }

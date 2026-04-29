@@ -6,11 +6,14 @@ export type AuthStackParamList = {
     Register: undefined;
 };
 
-export type AdminStackParamList = {
-    AdminHub: undefined;
-    AdminNeeds: undefined;
+/** Кореневий Stack поверх табів (адмін-маршрути). */
+export type RootStackParamList = {
+    MainTabs: undefined;
+    Admin: undefined;
+    AdminNeeds: { initialCategory?: 'archived' | 'active' } | undefined;
     AdminNeedDetail: { need: AdminNeed };
-    AdminPeople: undefined;
+    Members: undefined;
+    Candidates: undefined;
 };
 
 export type NeedsStackParamList = {
@@ -32,8 +35,7 @@ export type BibleStackParamList = {
 
 export type MainTabParamList = {
     Home: undefined;
-    Needs: NavigatorScreenParams<NeedsStackParamList> | undefined;
     Bible: NavigatorScreenParams<BibleStackParamList> | undefined;
+    Needs: NavigatorScreenParams<NeedsStackParamList> | undefined;
     Profile: undefined;
-    Admin: NavigatorScreenParams<AdminStackParamList> | undefined;
 };

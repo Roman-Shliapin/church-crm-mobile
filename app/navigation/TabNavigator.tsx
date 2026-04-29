@@ -6,22 +6,13 @@ import NeedsScreen from '../screens/NeedsScreen';
 import NeedDetailScreen from '../screens/NeedDetailScreen';
 import CreateNeedScreen from '../screens/CreateNeedScreen';
 import ProfileScreen from '../screens/ProfileScreen';
-import AdminHubScreen from '../screens/AdminHubScreen';
-import AdminNeedsScreen from '../screens/AdminNeedsScreen';
-import AdminNeedDetailScreen from '../screens/AdminNeedDetailScreen';
-import AdminPeopleScreen from '../screens/AdminPeopleScreen';
 import { Colors } from '../../constants/colors';
 import { CustomTabBar } from '../components/CustomTabBar';
-import { Home, FileText, User, Settings, BookOpen } from 'lucide-react-native';
-import type {
-    AdminStackParamList,
-    MainTabParamList,
-    NeedsStackParamList,
-} from './types';
+import { Home, FileText, User, BookOpen } from 'lucide-react-native';
+import type { MainTabParamList, NeedsStackParamList } from './types';
 import BibleScreenStack from '../screens/BibleScreen';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
-const AdminStack = createNativeStackNavigator<AdminStackParamList>();
 const NeedsStack = createNativeStackNavigator<NeedsStackParamList>();
 
 function NeedsStackNavigator() {
@@ -66,60 +57,17 @@ function NeedsStackNavigator() {
     );
 }
 
-function AdminStackNavigator({ userName }: { userName?: string }) {
-    return (
-        <AdminStack.Navigator
-            initialRouteName="AdminHub"
-            screenOptions={{
-                headerTintColor: Colors.primary,
-                headerTitleStyle: {
-                    fontWeight: '600',
-                    fontSize: 17,
-                    color: Colors.text,
-                },
-                headerStyle: {
-                    backgroundColor: Colors.background,
-                },
-                headerShadowVisible: false,
-                contentStyle: { backgroundColor: Colors.background },
-            }}
-        >
-            <AdminStack.Screen name="AdminHub" options={{ headerShown: false }}>
-                {(props) => <AdminHubScreen {...props} userName={userName} />}
-            </AdminStack.Screen>
-            <AdminStack.Screen
-                name="AdminNeeds"
-                component={AdminNeedsScreen}
-                options={{
-                    title: 'Заявки',
-                }}
-            />
-            <AdminStack.Screen
-                name="AdminNeedDetail"
-                component={AdminNeedDetailScreen}
-                options={{
-                    title: 'Заявка',
-                    headerBackTitle: 'Назад',
-                }}
-            />
-            <AdminStack.Screen
-                name="AdminPeople"
-                component={AdminPeopleScreen}
-                options={{
-                    title: 'Люди',
-                }}
-            />
-        </AdminStack.Navigator>
-    );
-}
+export type TabNavigatorProps = {
+    userName?: string;
+    currentUserId?: string;
+    onOpenAdmin?: () => void;
+};
 
 export default function TabNavigator({
-    role,
     userName,
-}: {
-    role: string;
-    userName?: string;
-}) {
+    currentUserId,
+    onOpenAdmin,
+}: TabNavigatorProps) {
     return (
         <Tab.Navigator
             tabBar={(props) => <CustomTabBar {...props} />}
@@ -163,24 +111,10 @@ export default function TabNavigator({
                 {() => (
                     <HomeScreen
                         userName={userName}
-                        isAdmin={role === 'admin'}
+                        currentUserId={currentUserId}
+                        onOpenAdmin={onOpenAdmin}
                     />
                 )}
-            </Tab.Screen>
-            <Tab.Screen
-                name="Needs"
-                options={{
-                    tabBarLabel: 'Заявки',
-                    tabBarIcon: ({ color, size, focused }) => (
-                        <FileText
-                            size={size ?? 24}
-                            color={color}
-                            strokeWidth={focused ? 2.5 : 1.85}
-                        />
-                    ),
-                }}
-            >
-                {() => <NeedsStackNavigator />}
             </Tab.Screen>
             <Tab.Screen
                 name="Bible"
@@ -198,6 +132,21 @@ export default function TabNavigator({
                 {() => <BibleScreenStack />}
             </Tab.Screen>
             <Tab.Screen
+                name="Needs"
+                options={{
+                    tabBarLabel: 'Заявки',
+                    tabBarIcon: ({ color, size, focused }) => (
+                        <FileText
+                            size={size ?? 24}
+                            color={color}
+                            strokeWidth={focused ? 2.5 : 1.85}
+                        />
+                    ),
+                }}
+            >
+                {() => <NeedsStackNavigator />}
+            </Tab.Screen>
+            <Tab.Screen
                 name="Profile"
                 component={ProfileScreen}
                 options={{
@@ -211,23 +160,6 @@ export default function TabNavigator({
                     ),
                 }}
             />
-            {role === 'admin' && (
-                <Tab.Screen
-                    name="Admin"
-                    options={{
-                        tabBarLabel: 'Адмін',
-                        tabBarIcon: ({ color, size, focused }) => (
-                            <Settings
-                                size={size ?? 24}
-                                color={color}
-                                strokeWidth={focused ? 2.5 : 1.85}
-                            />
-                        ),
-                    }}
-                >
-                    {() => <AdminStackNavigator userName={userName} />}
-                </Tab.Screen>
-            )}
         </Tab.Navigator>
     );
 }

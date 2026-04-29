@@ -14,7 +14,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Home } from 'lucide-react-native';
 import { api } from '../../services/api';
-import { saveToken } from '../../services/auth';
+import { saveToken, saveUserId } from '../../services/auth';
+import { userIdFromToken } from '../../services/jwt';
 import { Colors } from '../../constants/colors';
 import { Typography } from '../../constants/typography';
 import { softCardShadow } from '../../constants/shadows';
@@ -47,11 +48,19 @@ export default function LoginScreen({
             });
 
             if (data.token) {
+                const uid =
+                    typeof data.userId === 'string'
+                        ? data.userId
+                        : userIdFromToken(data.token);
+                if (uid) {
+                    await saveUserId(uid);
+                }
                 await saveToken(data.token);
                 onLogin({
                     token: data.token,
                     role: data.role,
                     name: typeof data.name === 'string' ? data.name : undefined,
+                    userId: uid,
                 });
             } else {
                 Alert.alert('Помилка', data.message || 'Невідома помилка');

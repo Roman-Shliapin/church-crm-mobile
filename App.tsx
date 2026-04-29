@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import * as Notifications from 'expo-notifications';
 import LoginScreen from './app/screens/LoginScreen';
 import RegisterScreen from './app/screens/RegisterScreen';
-import TabNavigator from './app/navigation/TabNavigator';
+import RootNavigator from './app/navigation/RootNavigator';
 import type { AuthStackParamList } from './app/navigation/types';
 import type { AppUser } from './app/types/auth';
 import { AppErrorBoundary } from './app/components/AppErrorBoundary';
@@ -13,17 +14,29 @@ import {
   unregisterSignOutHandler,
   SessionExpiredError,
 } from './services/session';
-import { getToken } from './services/auth';
+import { getToken, getUserId } from './services/auth';
 import { getProfile } from './services/profile';
-import { nameFromToken, roleFromToken } from './services/jwt';
+import { nameFromToken, roleFromToken, userIdFromToken } from './services/jwt';
 import { Colors } from './constants/colors';
+import { usePushNotifications } from './hooks/usePushNotifications';
 
 const Stack = createNativeStackNavigator<AuthStackParamList>();
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+  }),
+});
 
 export default function App() {
   const [user, setUser] = useState<AppUser | null>(null);
   const [hydrating, setHydrating] = useState(true);
   const [navKey, setNavKey] = useState(0);
+  usePushNotifications({ enabled: Boolean(user?.token) });
 
   useEffect(() => {
     registerSignOutHandler(() => setUser(null));
@@ -37,6 +50,9 @@ export default function App() {
         const token = await getToken();
         if (!token || cancelled) return;
 
+        const storedUserId = await getUserId();
+        const userId = storedUserId || userIdFromToken(token) || undefined;
+
         try {
           const profile = await getProfile();
           if (cancelled) return;
@@ -45,6 +61,7 @@ export default function App() {
             token,
             role: roleFromToken(token),
             name: name || nameFromToken(token),
+            userId,
           });
         } catch (e) {
           if (e instanceof SessionExpiredError) return;
@@ -53,6 +70,7 @@ export default function App() {
             token,
             role: roleFromToken(token),
             name: nameFromToken(token),
+            userId,
           });
         }
       } finally {
@@ -76,7 +94,7 @@ export default function App() {
     <AppErrorBoundary onReset={() => setNavKey((k) => k + 1)}>
       <NavigationContainer key={navKey}>
         {user ? (
-          <TabNavigator role={user.role} userName={user.name} />
+          <RootNavigator role={user.role} userName={user.name} currentUserId={user.userId} />
         ) : (
           <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName="Login">
             <Stack.Screen name="Login">
